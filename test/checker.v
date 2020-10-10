@@ -7,7 +7,8 @@
 */
 
 /*
-    Módulo que se encarga de verificar los resultados provenientes del contador.
+    Módulo que se encarga de verificar los resultados provenientes modulo
+    del contador.
 */
 module checker #( parameter FILE = "./logs/log.txt" )
 (
@@ -23,176 +24,144 @@ module checker #( parameter FILE = "./logs/log.txt" )
 );
 
     `ifndef TASKS_V
-    `include "./test/tasks.v"
+    `include "./test/tasks.v" // Incluye los task que verifican cada salida.
     `endif
 
     integer log;
         
-    reg Q_fallo;
-    reg rco_fallo;
-    reg load_fallo;
-    reg enable_reset_fallo;
-    reg [3:0] Q_anterior;
-    reg continuar;
+    reg [3:0] Q_check; // Es la variable que se comparará con la salida Q del contador.
+    reg rco_check; // Es la variable que se comparará con la salida rco del contador.
+    reg load_check; // Es la variable que se comparará con la salida load del contador.  
 
-    initial Q_fallo            = `BAJO;
-    initial rco_fallo          = `BAJO;
-    initial load_fallo         = `BAJO;
-    initial Q_anterior         = `BAJO;
-    initial continuar          = `BAJO;
-    initial enable_reset_fallo = `BAJO;
+    reg Q_FALLO; // Si la salida Q falla se ponen en alto.
+    reg RCO_FALLO; // Si la salida rco falla se ponen en alto.
+    reg LOAD_FALLO; // Si la salida load falla se ponen en alto.
 
-    
-    initial log = $fopen (FILE); 
+    reg temp = `BAJO; // Si es 1 indica que Q_check es ZZZZ.
 
+    initial log = $fopen (FILE); // Abre el archivo log para escritura. 
 
-    // La señal continuar es una bandera que indica cuando sensar las señales,
-    // si es 0 no habrá monitoreo, si es 1 se activará. 
-    always @(mode)
-    begin
-        continuar     = `BAJO;
-        #20 continuar = `ALTO;
-    end
-
-
-    // Si la señal de entrada cambia se hace un pequeño retardo para esperar
-    // que las señales internas del probador se actualicen. 
-    always @(D)
-    begin
-        if (mode==`CARGA_D && enable!=0 && reset!=1)
-        begin
-            continuar     = `BAJO;
-            #10 continuar = `ALTO;
-        end
-    end
-
-
-
-    /*  */
-    always @( enable or reset )
-    begin
-        Q_anterior = Q_temp;
-    end
-
-
-
-    reg [3:0] Q_temp;
 
     /**/
-    always @( Q )
+    always @( posedge clk )
     begin
 
-        /* REVISAR LUEGO */
-        // Si reset está en alto la salida es 0.
-        if ( (reset == `ALTO && enable == `BAJO) || (reset == `ALTO && enable == `ALTO) )
+        /* Si enable es 1 el contador funciona normal */
+        if ( enable == `ALTO && reset == `BAJO )
         begin
-            Q_anterior = `BAJO;
-            Q_temp = Q_anterior;
-        end
-
-        else if ( reset == `BAJO && enable == `BAJO )
-        begin
-            Q_anterior = `HiZ;
-
-        end
-
-        else if ( reset == `BAJO && enable == `ALTO )
-        begin
-            
-            if ( Q_anterior !== 4'bz && Q_anterior !== 4'bx )
-            begin
-
-                case (mode)
                 
-                    `CUENTA_TRES_TRES: Q_anterior = Q_anterior +3;
-                    `CUENTA_MENOS_UNO: Q_anterior = Q_anterior -1;
-                    `CUENTA_MAS_UNO:   Q_anterior = Q_anterior +1;
-                    `CARGA_D:          Q_anterior = D;
-                    default:           Q_anterior = `DEFAULT;
+            /* Si Q_check está en alta impedancia lo resetea */
+            if ( temp == `ALTO )
+            begin
+                Q_check <= `DEFAULT;
+                temp    <= `BAJO;
+            end
+                
+            else
+            begin 
+                /* Si Q no está en alta impedancia el contador funciona normal */
+                case (mode)
+
+                    `CUENTA_TRES_TRES: {rco_check, Q_check} <= Q_check + 3;
+                    `CUENTA_MENOS_UNO: {rco_check, Q_check} <= Q_check - 1;
+                    `CUENTA_MAS_UNO:   {rco_check, Q_check} <= Q_check + 1;
+                    `CARGA_D:          {rco_check, Q_check} <= {`BAJO, D};
+                    default:           {rco_check, Q_check} <= `DEFAULT;
 
                 endcase
-                
+                    
+
+                /* Si se esta en mode CARGA la salida load es 1, 0 en caso contrario */
+                if ( mode === `CARGA_D ) 
+                    load_check <= `ALTO;
+                else
+                    load_check <= `BAJO; 
+
             end
 
-            Q_temp = Q_anterior;
+        end
+                
+        /* Si reset=enable=0 Q_check se pone en alta impedancia y las salidas 
+        se ponen en bajo */
+        else if ( enable == `BAJO && reset == `BAJO )
+        begin
+            Q_check    <= `HiZ;
+            rco_check  <= `BAJO;
+            load_check <= `BAJO;
+            temp       <= `ALTO;
+        end
 
-        end // Fin de else if
+        /* Como reset=1 las salidas se ponen en bajo */
+        else if ( enable == `ALTO && reset == `ALTO )
+        begin
+            Q_check    <= `BAJO;
+            rco_check  <= `BAJO;
+            load_check <= `BAJO;   
+            temp       <= `BAJO;        
+        end
+
+        /* Como reset=1 las salidas se ponen en bajo */ 
+        else if ( enable == `BAJO && reset == `ALTO )
+        begin
+            Q_check    <= `BAJO;
+            rco_check  <= `BAJO;
+            load_check <= `BAJO; 
+            temp       <= `BAJO;               
+        end
+
+        /* Indica si hubo un valor equivocado para enable o reset */
+        else
+            $display ("ERROR: Combinación enable-reset inexistente.");
+
+
         
-
-        // Cada flanco positivo se verifican las salidas. 
-        // Se verifica la salida Q y se imprime un mensaje si la salida es incorrecta.   
-
         // Verifica el funcionamiento de la salida Q.
         verificar_Q
         (
-            enable, 
-            reset, 
-            mode, 
-            D,
             Q,
-            Q_anterior,
-            Q_fallo
+            Q_check,
+            Q_FALLO
         );
 
 
         // Verifica el funcionamiento de la salida rco.
         verificar_rco
         (
-            mode,
-            Q,
-            Q_anterior,
             rco,
-            rco_fallo
+            rco_check,
+            RCO_FALLO
         );
 
-
-        // Los checkers inician luego de 15 tiempos, esto para que se inicien todos
-        // los parámetros.
-        if ( continuar == `ALTO )
-        begin
-            // verifica el funcionamiento de la salida LOAD.
-            verificar_LOAD
-            (
-                reset, 
-                mode, 
-                load,
-                load_fallo
-            );  
-    
-        end
         
-    end
-
-
-
-    always @( Q_fallo )
-    begin
-        if ( Q_fallo === `ALTO )
+        // verifica el funcionamiento de la salida load.
+        verificar_LOAD
+        (
+            load, 
+            load_check,
+            LOAD_FALLO
+        );  
+    
+        /* Aquí se verifican las variables Q_FALLO, RCO_FALLO y LOAD_FALLO, 
+        en caso de que alguna este en alto se imprimirá en la terminal el mensaje
+        de fallo y se escribirá en el archivo log. */
+        if ( Q_FALLO == `ALTO ) 
         begin
             $display ("tiempo =%2d : modo %1b : Q fail", $time, mode);
             $fdisplay(log, "tiempo =%2d : modo %1b : Q fail", $time, mode);
-        end        
-    end
-
-
-    always @( load_fallo )
-    begin
-        if ( load_fallo === `ALTO )
-        begin
-            $display ("tiempo =%2d : modo %1b : load fail", $time, mode);
-            $fdisplay(log, "tiempo =%2d : modo %1b : load fail", $time, mode);
-        end         
-    end
-
-
-    always @( rco_fallo )
-    begin
-        // Se verifican la salida rco y se imprime un mensaje si la salida es incorrecta.
-        if ( rco_fallo === `ALTO )
-        begin
-            $display  ("tiempo =%2d : modo %1b : rco fail", $time, mode);
-            $fdisplay (log, "tiempo =%2d : modo %1b : rco fail", $time, mode);
         end
+        
+        if ( RCO_FALLO == `ALTO ) 
+        begin
+            $display ("tiempo =%2d : modo %1b : RCO fail", $time, mode);
+            $fdisplay(log, "tiempo =%2d : modo %1b : RCO fail", $time, mode);
+        end
+
+        if ( LOAD_FALLO == `ALTO ) 
+        begin
+            $display ("tiempo =%2d : modo %1b : LOAD fail", $time, mode);
+            $fdisplay(log, "tiempo =%2d : modo %1b : LOAD fail", $time, mode);
+        end
+
     end
 
 endmodule

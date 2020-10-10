@@ -5,6 +5,7 @@
     Carné A53863
     II-2020
 */
+
 `ifndef DEFINES_V
 `include "./src/defines.v"
 `endif
@@ -24,8 +25,8 @@ module test_1 #( parameter FILE = "./logs/log.txt" )
     integer log;
 
     // Inicia el reloj en 0.
-    initial clk = 0;
-    always #5 clk = !clk;
+    initial clk = `BAJO;
+    always #`CLK clk = !clk;
 
     // Crea el archivo de logs.
     initial 
@@ -36,42 +37,43 @@ module test_1 #( parameter FILE = "./logs/log.txt" )
     end
 
     // Al iniciar el test resetea el circuito.
-    initial enable     = 0;
-    initial #10 enable = 1; 
-    initial reset      = 1;
-    initial #10 reset  = 0;
+    initial enable           = `BAJO;
+    initial #(`CLK*2) enable = `ALTO; 
+    initial reset            = `ALTO;
+    initial #(`CLK*2) reset  = `BAJO;
     
-    initial #1410 enable = `DESACTIVADO;
-    initial #1410 reset  = `DESACTIVADO;
-    initial #1760 enable = `ACTIVO;
-    initial #1760 reset  = `DESACTIVADO;
+    initial #(`CLK*282) enable = `DESACTIVADO;
+    initial #(`CLK*282) reset  = `DESACTIVADO;
+
+    initial #(`CLK*352) enable = `ACTIVO;
+    initial #(`CLK*352) reset  = `DESACTIVADO;
 
 
     // Se coloca el protocolo de verificación.
     initial
     begin
         mode = `CARGA_D;
-        D = 0;
+        D = `BAJO;
 
         // Prueba el modo 00.
-        #10 mode = `CUENTA_TRES_TRES;
+        #(`CLK*2) mode = `CUENTA_TRES_TRES;
                 
         // Prueba el modo 01.
-        #350 mode = `CUENTA_MENOS_UNO;
+        #(`CLK*70) mode = `CUENTA_MENOS_UNO;
         
         // Prueba el modo 10.
-        #350 mode = `CUENTA_MAS_UNO;
+        #(`CLK*70) mode = `CUENTA_MAS_UNO;
         
         // Prueba el modo 11.
-        #350 mode = `CARGA_D;
+        #(`CLK*70) mode = `CARGA_D;
                 
         // Se probarán los modos de forma aleatoria hasta el final de la simulación.
         // También las entradas enable-reset cambiarán aleatoriamente.
         forever
         begin
-            #350 mode <= $random;
-            #($urandom_range(50,100)) enable <= $random;
-            #($urandom_range(50,100)) reset  <= $random; 
+            #(`CLK*70) mode <= $random;
+            #($urandom_range( `CLK*10, `CLK*20) ) enable <= $random;
+            #($urandom_range( `CLK*10, `CLK*20) ) reset  <= $random; 
         end
 
     end
@@ -80,7 +82,7 @@ module test_1 #( parameter FILE = "./logs/log.txt" )
     // D es aleatorio durante toda la simulación.
     always
     begin
-        #100 D <= $random; 
+        #(`CLK*20) D <= $random; 
     end
 
 endmodule

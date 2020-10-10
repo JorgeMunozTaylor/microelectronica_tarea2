@@ -9,12 +9,12 @@
 `timescale 1ns/1ps
 
 `include "./test/test.v"
-`include "./src/counter.v"
+`include "./src/contador_synt.v"
 `include "./test/checker.v"
 
 
 /*
-    Testbench que se usará para el contador, simplemente conecta los
+    Testbench que se usará para el contador A, simplemente conecta todos los
     módulos, indica cuando acaba la simulación y genera el archivo VCD.
 */
 module testbench;
@@ -29,7 +29,6 @@ module testbench;
     wire [3:0] Q;
 
 
-    /* Instancia el módulo que genera las señales */
     test_1 #( .FILE("./logs/log.txt") ) TEST_1
     (
         .enable (enable), 
@@ -40,7 +39,6 @@ module testbench;
     );
 
 
-    /* Instancia el contador */
     counter DUV 
     (
         .CLK    (clk),
@@ -54,8 +52,6 @@ module testbench;
     );
 
 
-    /* Instancia el módulo CHECK que se usará para verificar las salidas 
-       del DUV */
     checker CHECK
     (
         .enable (enable), 
@@ -68,7 +64,7 @@ module testbench;
         .Q      (Q)
     );
 
-    /* Acaba la simulación y genera el archivo VCD */
+
     initial
     begin
         $dumpfile("./bin/prueba.vcd");

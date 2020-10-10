@@ -17,26 +17,21 @@
 */
 task verificar_Q
 (
-    input enable, 
-    input reset, 
-    input [1:0] mode, 
-    input [3:0] D,
-    input [3:0] Q,
-    input [3:0] Q_anterior,
-    
-    output reg Q_fallo //Si es 1 indica que Q falló la prueba. 
-); 
-    integer temp;
+    input [3:0] Qi,
+    input [3:0] Q_ant,
 
-    begin     
-     
-        /**/
-        if ( enable === `ACTIVO && reset === `DESACTIVADO )
-        begin 
-            Q_fallo = ( Q === Q_anterior )? `BAJO:`ALTO;                
-        end
-  
-    end
+    output reg Q_fallo
+); 
+
+    begin   
+
+        if ( Q_ant === `HiZ )
+            Q_fallo = ( Qi === `HiZ || Qi == 4'b0000 )? `BAJO:`ALTO;
+          
+        else
+            Q_fallo = ( Qi === Q_ant )? `BAJO:`ALTO;
+                
+    end 
 
 endtask
 
@@ -47,23 +42,14 @@ endtask
 */
 task verificar_LOAD
 (
-    //input enable, 
-    input reset, 
-    input [1:0] mode, 
-    input load,
+    input LOAD,
+    input LOAD_CHECK,
 
-    output reg load_fallo //Si es 1 indica que load falló la prueba.
+    output reg LOAD_fallo
  ); 
+    
     begin
-
-        if (  mode === `CARGA_D && reset === `DESACTIVADO && load != `ALTO )
-        begin
-            load_fallo = `ALTO;            
-        end
-
-        else
-            load_fallo = `BAJO;
-
+        LOAD_fallo = ( LOAD === LOAD_CHECK )? `BAJO:`ALTO;
     end
 
 endtask
@@ -75,65 +61,14 @@ endtask
 */
 task verificar_rco
 (
-    input [3:0] mode,
-    input [3:0] Q,
-    input [3:0] Q_anterior,
-    input rco,
+    input RCO,
+    input RCO_check,
 
-    output reg rco_fallo //Si es 1 indica que rco falló la prueba.
+    output reg RCO_fallo
 );
+
     begin
-
-        /* Si reset es 1 o reset=enable=0 el RCO debe ser 0 */
-        if ( ( reset == `BAJO && enable == `ALTO ) ) 
-        begin
-
-            if (mode == `CARGA_D)
-            begin
-                if (rco != `BAJO) rco_fallo = `ALTO;
-                else rco_fallo = `BAJO;
-            end
-
-            else
-            begin
-                if ( Q === 4'h0 && (Q_anterior -1) === (Q - 1) && mode == `CUENTA_MAS_UNO )
-                begin
-                    rco_fallo <= ( rco !== `ALTO )? `ALTO:`BAJO;
-                end
-
-                else if ( Q === 4'hf && (Q_anterior -1) === (Q-1) && mode == `CUENTA_MENOS_UNO )
-                begin
-                    rco_fallo <= ( rco !== `ALTO )? `ALTO:`BAJO;
-                end
-
-                else if ( Q === 4'h0 && (Q_anterior - 3) === (Q - 3) && mode == `CUENTA_TRES_TRES )
-                begin
-                    rco_fallo <= ( rco !== `ALTO )? `ALTO:`BAJO;
-                end
-
-                else if ( Q === 4'h1 && (Q_anterior - 3) === (Q - 3) && mode == `CUENTA_TRES_TRES )
-                begin
-                    rco_fallo <= ( rco !== `ALTO )? `ALTO:`BAJO;
-                end
-
-                else if ( Q === 4'h2 && (Q_anterior - 3) === (Q - 3) && mode == `CUENTA_TRES_TRES )
-                begin
-                    rco_fallo <= ( rco !== `ALTO )? `ALTO:`BAJO;
-                end
-
-                else
-                begin
-                    rco_fallo <= ( rco !== `ALTO && rco !== `HiZ && rco !== 1'bx )? `BAJO:`ALTO;
-                end
-
-            end
-        end
-
-        else
-        begin
-            rco_fallo <= ( rco === `BAJO )? `BAJO:`ALTO;
-        end
-
+        RCO_fallo = ( RCO === RCO_check )? `BAJO:`ALTO;
     end
 
 endtask

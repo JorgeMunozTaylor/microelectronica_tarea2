@@ -6,6 +6,9 @@
     II-2020
 */
 
+`ifndef DEFINES_V
+`include "./src/defines.v"
+`endif
 
 /*
 Descripción conductual de un contador que cuenta con 4 modos de operación: 
@@ -28,77 +31,81 @@ module counter
     output reg       LOAD
 );
 
-    reg [3:0] Q_temp = `BAJO; // Guarda el valor anterior de Q
-    reg EN_RE;                // Si es 1:  ENABLE = RESET = 0
+    /* Indica si Q está en alta impedancia 
 
+        temp == 1: Q vale zzzz
+        temp == 0: Q es diferente de zzzz
+    */
+    reg temp = `BAJO; 
 
-
-    /**/
+    /* Loop principal activado por el flanco positivo de CLK */
     always @( posedge CLK )
     begin
 
-        if ( EN_RE == `BAJO )
-        begin
             /* Si ENABLE es 1 el contador funciona normal */
-            if ( ENABLE == `ALTO )
+            if ( ENABLE == `ALTO && RESET == `BAJO )
             begin
                 
-                if( Q !== 4'bz && Q !== 4'bx ) 
-                    Q_temp = Q;
-
-                case (MODO)
-
-                    `CUENTA_TRES_TRES: {RCO, Q} = Q_temp +3;
-                    `CUENTA_MENOS_UNO: {RCO, Q} = Q_temp -1;
-                    `CUENTA_MAS_UNO:   {RCO, Q} = Q_temp +1;
-                    `CARGA_D:          {RCO, Q} = {`BAJO, D};
-                    default:           {RCO, Q} = `DEFAULT;
-
-                endcase
+                /* Si temp = 1 (es decir Q==zzzz) se resetean Q y RCO */
+                if ( temp == `ALTO )
+                begin
+                    Q    <= `DEFAULT;
+                    temp <= `BAJO;
+                    RCO  <= `BAJO;
+                end
                 
+                else
+                begin
+                    /* Como Q no esta en alta impedancia el contador funciona
+                    normal */
+                    case (MODO)
+
+                        `CUENTA_TRES_TRES: {RCO, Q} <= Q + 3;
+                        `CUENTA_MENOS_UNO: {RCO, Q} <= Q - 1;
+                        `CUENTA_MAS_UNO:   {RCO, Q} <= Q + 1;
+                        `CARGA_D:          {RCO, Q} <= {`BAJO, D};
+                        default:           {RCO, Q} <= `DEFAULT;
+
+                    endcase
+                    
+
+                    /* Si se esta en modo CARGA la salida LOAD es 1, 0 en caso contrario */
+                    if ( MODO == `CARGA_D ) 
+                        LOAD <= `ALTO;
+                    else
+                        LOAD <= `BAJO; 
+
+                end
+
             end
-            /* Si ENABLE es 0 el contador permanece en el ultimo estado */
-        end
-
-
-
-
-        /* Si RESET es 1 todas las salidas se ponen en 0 */
-        if ( RESET == `ALTO )
-        begin
-            EN_RE <= `BAJO;
-            Q     <= `BAJO;
-            RCO   <= `BAJO;
-        end
-
-        /* Si ENABLE es 0 y RESET es 0 la salida Q es Hiz */
-        else 
-        begin
-
-            if ( ENABLE == `BAJO )
+                
+            /* Si enable=reset=0 la salida Q = zzzz y las demas salidas se
+            ponen en bajo, este estado se indica con la variable temp en alto */
+            else if ( ENABLE == `BAJO && RESET == `BAJO )
             begin
-                if (EN_RE == `BAJO) Q_temp = Q;
-                EN_RE  = `ALTO;
-                Q      = `HiZ;
+                Q    <= `HiZ;
+                RCO  <= `BAJO;
+                LOAD <= `BAJO;
+                temp <= `ALTO;
             end
 
+            /* Como el reset=1 todas las salidas se ponen en bajo */
+            else if ( ENABLE == `ALTO && RESET == `ALTO )
+            begin
+                Q    <= `BAJO;
+                RCO  <= `BAJO;
+                LOAD <= `BAJO; 
+                temp <= `BAJO;  
+            end
+
+            /* Como el reset=1 todas las salidas se ponen en bajo */ 
             else
             begin
-
-                if( EN_RE == `ALTO )
-                    EN_RE <= `BAJO;
+                Q    <= `BAJO;
+                RCO  <= `BAJO;
+                LOAD <= `BAJO; 
+                temp <= `BAJO;               
             end
-
-        end
-
-
-
-
-        /* Si se esta en modo CARGA la salida LOAD es 1, 0 en caso contrario */
-        if ( MODO === `CARGA_D && (RESET === 0 ) ) 
-            LOAD = `ALTO;
-        else
-            LOAD = `BAJO;
 
     end // Always end
 

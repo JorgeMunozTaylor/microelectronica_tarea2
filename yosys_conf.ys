@@ -1,0 +1,13 @@
+#    Tarea 2
+#    Microelectrónica
+#    Creado por Jorge Muñoz Taylor
+#    Carné A53863
+#    II-2020
+
+read_verilog src/counter.v 
+synth -top counter
+dfflibmap -liberty cells/cmos_cells.lib 
+abc -liberty cells/cmos_cells.lib 
+clean
+write_verilog src/contador_synt.v
+show
